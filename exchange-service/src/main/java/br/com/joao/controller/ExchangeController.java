@@ -2,6 +2,7 @@ package br.com.joao.controller;
 
 import br.com.joao.environment.InstanceInformationService;
 import br.com.joao.model.Exchange;
+import br.com.joao.repository.ExchangeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,14 +20,24 @@ public class ExchangeController {
     @Autowired
     InstanceInformationService informationService;
 
-    // http://localhost:8000/exchange-service/5/USD/BRL
+    @Autowired
+    ExchangeRepository repository;
 
-    @GetMapping(value = "/{amount}/{from}/{to}",produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(value = "/{amount}/{from}/{to}", produces = MediaType.APPLICATION_JSON_VALUE)
     public Exchange getExchange(@PathVariable("amount") BigDecimal amount,
-                                @PathVariable("from")String from,
-                                @PathVariable("to")String to) {
-        return new Exchange(1L, from, to, BigDecimal.ONE,
-                BigDecimal.ONE, "PORT " + informationService.retrieveServerPort());
+                                @PathVariable("from") String from,
+                                @PathVariable("to") String to) {
+
+        Exchange exchange = repository.findByFromAndTo(from, to);
+
+        if (exchange == null) throw new RuntimeException("Currency Unsupported!");
+
+        BigDecimal conversionFactor = exchange.getConversionFactor();
+        BigDecimal convertedValue = conversionFactor.multiply(amount);
+        exchange.setConvertedValue(convertedValue);
+        exchange.setEnvironment("Port" + informationService.retrieveServerPort());
+
+        return exchange;
     }
 
 }
